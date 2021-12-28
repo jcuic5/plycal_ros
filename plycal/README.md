@@ -26,6 +26,8 @@ We have tested the current qt-based tool with RSLidar-16, RSlidar-32, Rslidar-me
 ## Usage  
 [中文使用说明](./doc/README.md)  
 
+[English Instructions](./doc/README_en.md)  
+
 Before using the gui tool:
 1. Calibrate camera and put intrinsic parameter `D, K` at config file or set by gui.  
 2. Collect synced image(png,jpg,jpeg) and pointcloud (pcd), put them into `some_place/image_orig` and  `some_place/pointcloud` directory, respectively. Name the file like `0.jpg, 1.jpg, ..., n.jpg`.  

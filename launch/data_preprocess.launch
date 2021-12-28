@@ -1,7 +1,9 @@
 <launch>
 
+    <!-- <arg name="rviz_file" 
+         default="$(find plycal_ros)/configs/velodyne_B.rviz" /> -->
     <arg name="rviz_file" 
-         default="$(find plycal_ros)/configs/velodyne_B.rviz" />
+         default="$(find plycal_ros)/configs/Focus.rviz" />
 
 	<node pkg="plycal_ros" 
           name="bag_sync" 
@@ -13,9 +15,9 @@
           type="camera_info_publisher.py" 
           output="screen" /> -->
 
-	<node pkg="rviz" 
+	<!-- <node pkg="rviz" 
           name="rviz" 
           type="rviz" 
           args="-d $(arg rviz_file)" 
-          required="true" />
+          required="true" /> -->
 </launch>

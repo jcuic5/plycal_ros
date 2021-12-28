@@ -13,15 +13,53 @@ import threading
 import cv2
 # import open3d as o3d
 
+#
+# Usage: calibration
+#
+# Simrod raw image (calibration rosbag)
+# img_topic_raw = "/ecam_v4l2/image_raw"
+# pcd_topic_raw = "/velodyne_points_B"
+# img_topic_syn = "/ecam_v4l2/image_raw/syn"
+# pcd_topic_syn = "/velodyne_points_B/syn"
 
-img_topic_raw = "/ecam_v4l2/image_raw"
-pcd_topic_raw = "/velodyne_points_B"
-img_topic_syn = "/ecam_v4l2/image_raw/syn"
-pcd_topic_syn = "/velodyne_points_B/syn"
+# # calib_filename = "calibration_simrod_ecam_1280x720.txt"
+# calib_filename = "calibration_simrod.txt"
+# img_topic_debug = "/ecam_v4l2/image_debug"
+# pcd_topic_filtered = "/velodyne_points_B/filtered"
 
-# calib_filename = "calibration_simrod_ecam_1280x720.txt"
-calib_filename = "calibration.txt"
-img_topic_debug = "/ecam_v4l2/image_debug"
+# Simrod compressed image
+# img_topic_raw = "/ecam_v4l2/image_raw/compressed"
+# pcd_topic_raw = "/velodyne_points_B"
+# img_topic_syn = "/ecam_v4l2/image_raw/syn/compressed"
+# pcd_topic_syn = "/velodyne_points_B/syn"
+
+# calib_filename = "calibration_simrod.txt"
+# img_topic_debug = "/ecam_v4l2/image_raw/syn/image_debug"
+# pcd_topic_filtered = "/velodyne_points_B/filtered"
+
+# Focus compressed image
+# img_topic_raw = "/port_0/camera_0/image_raw/compressed"
+# pcd_topic_raw = "/velodyne_points_A"
+# img_topic_syn = "/port_0/camera_0/image_raw/syn/compressed"
+# pcd_topic_syn = "/velodyne_points_A/syn"
+
+# calib_filename = "calibration_focus.txt"
+# img_topic_debug = "/port_0/camera_0/image_raw/syn/image_debug"
+# pcd_topic_filtered = "/velodyne_points_A/filtered"
+
+#
+# Usage: Work with pipeline
+#
+img_topic_syn = "/image_syn"
+pcd_topic_syn = "/pointcloud_syn"
+
+# calib_filename = "calibration_focus.txt"
+# img_topic_debug = "/port_0/camera_0/image_raw/syn/image_debug"
+# pcd_topic_filtered = "/velodyne_points_A/filtered"
+
+#*[simrod]
+calib_filename = "calibration_simrod.txt"
+img_topic_debug = "/ecam_v4l2/image_raw/syn/image_debug"
 pcd_topic_filtered = "/velodyne_points_B/filtered"
 
 PAUSE = False
@@ -95,10 +133,16 @@ def read_calib_file(calib_path):
 class Synchronizer:
 
     def __init__(self, calib_path=None, save_path=None):
-        self.img_sub = rospy.Subscriber(img_topic_raw, Image, self.img_raw_callback, queue_size=10) 
-        self.pcd_sub = rospy.Subscriber(pcd_topic_raw, PointCloud2, self.pcd_raw_callback, queue_size=10)
-        self.img_pub = rospy.Publisher(img_topic_syn, Image, queue_size=10)
-        self.pcd_pub = rospy.Publisher(pcd_topic_syn, PointCloud2, queue_size=10)
+        #
+        # Note: uncomment the following 6 lines if synchronization is needed
+        #
+        # self.img_sub = rospy.Subscriber(img_topic_raw, Image, self.img_raw_callback, queue_size=10) 
+        # self.img_sub = rospy.Subscriber(img_topic_raw, CompressedImage, self.img_raw_callback, queue_size=10) 
+        # self.pcd_sub = rospy.Subscriber(pcd_topic_raw, PointCloud2, self.pcd_raw_callback, queue_size=10)
+
+        # self.img_pub = rospy.Publisher(img_topic_syn, Image, queue_size=10)
+        # self.img_pub = rospy.Publisher(img_topic_syn, CompressedImage, queue_size=10)
+        # self.pcd_pub = rospy.Publisher(pcd_topic_syn, PointCloud2, queue_size=10)
 
         self.img_debug_pub = rospy.Publisher(img_topic_debug, Image, queue_size=10)
         self.pcd_filtered_pub = rospy.Publisher(pcd_topic_filtered, PointCloud2, queue_size=10)
@@ -106,6 +150,7 @@ class Synchronizer:
         if calib_path is not None:
             self.lidar2img = self.init_calib(calib_path)
             img_syn_sub = message_filters.Subscriber(img_topic_syn, Image)
+            # img_syn_sub = message_filters.Subscriber(img_topic_syn, CompressedImage)
             pcd_syn_sub = message_filters.Subscriber(pcd_topic_syn, PointCloud2)
             self.ts = message_filters.ApproximateTimeSynchronizer([img_syn_sub, pcd_syn_sub], 10, 0.1, False)
             self.ts.registerCallback(self.ts_callback)
@@ -173,7 +218,7 @@ class Synchronizer:
         #
         im = np.frombuffer(img_msg.data, dtype=np.uint8).reshape(
                                         img_msg.height, img_msg.width, -1)
-        # image = cv2.cvtColor(im, cv2.COLOR_BGR2RGB)
+        # # image = cv2.cvtColor(im, cv2.COLOR_BGR2RGB)
         image_np = np.array(im)
         #NOTE: in case of CompressedImage:
         # np_arr = np.fromstring(img_msg.data, np.uint8)
@@ -183,15 +228,21 @@ class Synchronizer:
                 pcd_msg,
                 field_names=("x", "y", "z", "intensity", "ring", "time"),
                 skip_nans=True):
-            gen.append(np.array([p[0], p[1], p[2], p[3], p[4], p[5]])) #p[3]/100
+            gen.append(np.array([p[0], p[1], p[2], p[3], p[4], p[5]])) #*[simrod]
+            # gen.append(np.array([-p[1], p[0], p[2], p[3], p[4], p[5]])) #* focus
         pcd = np.array(gen, dtype=np.float32)
         # rospy.loginfo('Pointcloud read shape: %s', pcd.shape)
         #
         # Draw pointcloud projection on image and publish it
         #
-        inds = (pcd[:, 0] < 5) * (pcd[:, 0] > 0) * \
-                    (pcd[:, 1] < 2.5) * (pcd[:, 1] > -2.5) * \
-                        (pcd[:, 2] < 2) * (pcd[:, 2] > -2)
+        #* short range
+        # inds = (pcd[:, 0] < 5) * (pcd[:, 0] > 0) * \
+        #             (pcd[:, 1] < 2.5) * (pcd[:, 1] > -2.5) * \
+        #                 (pcd[:, 2] < 2) * (pcd[:, 2] > -2)
+        #* all points
+        inds = (pcd[:, 0] < 200) * (pcd[:, 0] > 0) * \
+                    (pcd[:, 1] < 200) * (pcd[:, 1] > -200) * \
+                        (pcd[:, 2] < 100) * (pcd[:, 2] > -10)
         #NOTE: filter the checkerboard out to more clearly see the quality
         pcd = pcd[inds]
         pcd, pts_2d, pcd_non_fov = \
@@ -204,8 +255,20 @@ class Synchronizer:
                 gs_x, gs_y = grids_x + i, grids_y + j
                 gs_x, gs_y = gs_x.tolist(), gs_y.tolist()
                 image_np[gs_y, gs_x] = np.array([0, 255, 0])
-        img_debug_msg = img_msg
+        # img_debug_msg = img_msg
+        # img_debug_msg.header.stamp = rospy.Time.now()
+        # img_debug_msg.data = image_np.tobytes()
+        img_debug_msg = Image()
         img_debug_msg.header.stamp = rospy.Time.now()
+
+        #*[simrod]
+        img_debug_msg.height = 720
+        img_debug_msg.width = 1280
+        #* Focus
+        # img_debug_msg.height = 1208
+        # img_debug_msg.width = 1920
+
+        img_debug_msg.encoding = "bgr8"
         img_debug_msg.data = image_np.tobytes()
         self.img_debug_pub.publish(img_debug_msg)
         #

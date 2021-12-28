@@ -6,6 +6,7 @@ set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 add_definitions(-std=c++11) # for qt creator
+add_definitions(-DBOOST_ERROR_CODE_HEADER_ONLY)
 
 # Optionally compiling part
 option(BUILD_PlyCal_GUI "enables PlyCal viewer" true)

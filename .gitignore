@@ -1,6 +1,3 @@
 .vscode/
 __pycache__/
 build
-image_orig/*
-pointcloud/*
-pointcloud_bin/*
